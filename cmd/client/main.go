@@ -10,16 +10,17 @@ import (
 	"time"
 
 	"github.com/bur4kbey/go-ddns/internal/crypto"
+	"github.com/bur4kbey/go-ddns/internal/env"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Load .env file if it exists (for local development). 
+	// Load .env file if it exists (for local development).
 	// In Docker, these will be set via environment variables and this will fail silently.
 	_ = godotenv.Load()
 
-	domain := flag.String("domain", "", "The base public domain (e.g., example.com)")
-	key := flag.String("key", "", "The TXT record key/subdomain (e.g., home-node)")
+	domain := flag.String("domain", "", "The base public domain (e.g., domain.tld)")
+	key := flag.String("key", "", "The TXT record key/subdomain (e.g., _go_ddns)")
 	secret := flag.String("secret", "", "The decryption key")
 	out := flag.String("out", "ip.txt", "The output file path")
 	keepAlive := flag.Bool("keep-alive", false, "Keep running and check every 5 minutes")
@@ -28,14 +29,15 @@ func main() {
 
 	if *domain == "" || *key == "" || *secret == "" {
 		// Read from ENV as fallback for Docker usage
+		config := env.Load()
 		if *domain == "" {
-			*domain = os.Getenv("GO_DDNS_DOMAIN")
+			*domain = config.Domain
 		}
 		if *key == "" {
-			*key = os.Getenv("GO_DDNS_KEY")
+			*key = config.Key
 		}
 		if *secret == "" {
-			*secret = os.Getenv("GO_DDNS_SECRET")
+			*secret = config.Secret
 		}
 	}
 

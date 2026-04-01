@@ -4,28 +4,41 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/bur4kbey/go-ddns/internal/cloudflare"
 	"github.com/bur4kbey/go-ddns/internal/crypto"
+	"github.com/bur4kbey/go-ddns/internal/env"
 	"github.com/bur4kbey/go-ddns/internal/ipfetcher"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Load .env file if it exists (for local development). 
+	// Load .env file if it exists (for local development).
 	// In Docker, these will be set via environment variables and this will fail silently.
 	_ = godotenv.Load()
 
-	secret := os.Getenv("GO_DDNS_SECRET")
-	cfToken := os.Getenv("GO_DDNS_CLOUDFLARE_TOKEN")
-	zoneID := os.Getenv("GO_DDNS_ZONE_ID")
-	domain := os.Getenv("GO_DDNS_DOMAIN")
-	key := os.Getenv("GO_DDNS_KEY")
+	config := env.Load()
+	secret := config.Secret
+	cfToken := config.CloudflareToken
+	zoneID := config.ZoneID
+	domain := config.Domain
+	key := config.Key
 
-	if secret == "" || cfToken == "" || zoneID == "" || domain == "" || key == "" {
-		log.Fatal("Missing required environment variables: GO_DDNS_SECRET, GO_DDNS_CLOUDFLARE_TOKEN, GO_DDNS_ZONE_ID, GO_DDNS_DOMAIN, GO_DDNS_KEY")
+	if secret == "" {
+		log.Fatal("Missing required environment variable: GO_DDNS_SECRET")
+	}
+	if cfToken == "" {
+		log.Fatal("Missing required environment variable: GO_DDNS_CLOUDFLARE_TOKEN")
+	}
+	if zoneID == "" {
+		log.Fatal("Missing required environment variable: GO_DDNS_ZONE_ID")
+	}
+	if domain == "" {
+		log.Fatal("Missing required environment variable: GO_DDNS_DOMAIN")
+	}
+	if key == "" {
+		log.Fatal("Missing required environment variable: GO_DDNS_KEY")
 	}
 
 	recordName := fmt.Sprintf("%s.%s", key, domain)
