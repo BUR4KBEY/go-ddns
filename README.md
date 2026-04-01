@@ -78,7 +78,7 @@ services:
     image: ghcr.io/bur4kbey/go-ddns-server:main
     restart: unless-stopped
     environment:
-      GO_DDNS_SECRET= your_32_byte_hex_secret
+      GO_DDNS_SECRET: your_32_byte_hex_secret
       GO_DDNS_CLOUDFLARE_TOKEN: your_cloudflare_token
       GO_DDNS_ZONE_ID: your-zone-id
       GO_DDNS_DOMAIN: domain.tld
