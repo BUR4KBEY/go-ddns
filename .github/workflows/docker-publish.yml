@@ -9,7 +9,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push-server:
@@ -32,14 +31,14 @@ jobs:
         if: github.event_name != 'pull_request'
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor | lower }}
+          username: bur4kbey
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.actor | lower }}/go-ddns-server
+          images: ${{ env.REGISTRY }}/bur4kbey/go-ddns-server
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -50,8 +49,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.actor | lower }}/go-ddns-server:cache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ github.actor | lower }}/go-ddns-server:cache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/bur4kbey/go-ddns-server:cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/bur4kbey/go-ddns-server:cache,mode=max
 
   build-and-push-client:
     runs-on: ubuntu-latest
@@ -73,14 +72,14 @@ jobs:
         if: github.event_name != 'pull_request'
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor | lower }}
+          username: bur4kbey
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.actor | lower }}/go-ddns-client
+          images: ${{ env.REGISTRY }}/bur4kbey/go-ddns-client
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -91,5 +90,5 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.actor | lower }}/go-ddns-client:cache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ github.actor | lower }}/go-ddns-client:cache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/bur4kbey/go-ddns-client:cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/bur4kbey/go-ddns-client:cache,mode=max
