@@ -82,7 +82,7 @@ services:
       GO_DDNS_CLOUDFLARE_TOKEN: your_cloudflare_token
       GO_DDNS_ZONE_ID: your-zone-id
       GO_DDNS_DOMAIN: domain.tld
-      GO_DDNS_KEY: _go_ddbs
+      GO_DDNS_KEY: _go_ddns
 
   # This machine will fetch the IP and save it to a local file
   retriever:
