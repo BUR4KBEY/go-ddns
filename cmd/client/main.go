@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -12,6 +11,15 @@ import (
 	"github.com/bur4kbey/go-ddns/internal/crypto"
 	"github.com/bur4kbey/go-ddns/internal/env"
 	"github.com/joho/godotenv"
+	"github.com/spf13/cobra"
+)
+
+var (
+	domain    string
+	key       string
+	secret    string
+	out       string
+	keepAlive bool
 )
 
 func main() {
@@ -19,55 +27,64 @@ func main() {
 	// In Docker, these will be set via environment variables and this will fail silently.
 	_ = godotenv.Load()
 
-	domain := flag.String("domain", "", "The base public domain (e.g., domain.tld)")
-	key := flag.String("key", "", "The TXT record key/subdomain (e.g., _go_ddns)")
-	secret := flag.String("secret", "", "The decryption key")
-	out := flag.String("out", "ip.txt", "The output file path")
-	keepAlive := flag.Bool("keep-alive", false, "Keep running and check every 5 minutes")
+	rootCmd := &cobra.Command{
+		Use:   "client",
+		Short: "go-ddns client reads encrypted IP from Cloudflare TXT record",
+		Run: func(cmd *cobra.Command, args []string) {
+			if domain == "" || key == "" || secret == "" {
+				// Read from ENV as fallback for Docker usage
+				config := env.Load()
+				if domain == "" {
+					domain = config.Domain
+				}
+				if key == "" {
+					key = config.Key
+				}
+				if secret == "" {
+					secret = config.Secret
+				}
+			}
 
-	flag.Parse()
+			if domain == "" || key == "" || secret == "" {
+				fmt.Println("Usage:")
+				_ = cmd.Help()
+				os.Exit(1)
+			}
 
-	if *domain == "" || *key == "" || *secret == "" {
-		// Read from ENV as fallback for Docker usage
-		config := env.Load()
-		if *domain == "" {
-			*domain = config.Domain
-		}
-		if *key == "" {
-			*key = config.Key
-		}
-		if *secret == "" {
-			*secret = config.Secret
-		}
+			recordName := fmt.Sprintf("%s.%s", key, domain)
+			if key == "@" {
+				recordName = domain
+			}
+
+			var lastTXT string
+
+			process(recordName, secret, out, &lastTXT)
+
+			if keepAlive {
+				log.Printf("Entering keep-alive mode. Checking every 5 minutes.")
+				ticker := time.NewTicker(5 * time.Minute)
+				defer ticker.Stop()
+
+				for range ticker.C {
+					process(recordName, secret, out, &lastTXT)
+				}
+			}
+		},
 	}
 
-	if *domain == "" || *key == "" || *secret == "" {
-		fmt.Println("Usage:")
-		flag.PrintDefaults()
+	rootCmd.Flags().StringVar(&domain, "domain", "", "[Required] The base public domain (e.g., domain.tld)")
+	rootCmd.Flags().StringVar(&key, "key", "", "[Required] The TXT record key/subdomain (e.g., _go_ddns)")
+	rootCmd.Flags().StringVar(&secret, "secret", "", "[Required] The decryption key")
+	rootCmd.Flags().StringVarP(&out, "out", "o", "ip.txt", "The output file path")
+	rootCmd.Flags().BoolVarP(&keepAlive, "keep-alive", "d", false, "Keep running and check every 5 minutes")
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
 		os.Exit(1)
-	}
-
-	recordName := fmt.Sprintf("%s.%s", *key, *domain)
-	if *key == "@" {
-		recordName = *domain
-	}
-
-	var lastTXT string
-
-	run(recordName, *secret, *out, &lastTXT)
-
-	if *keepAlive {
-		log.Printf("Entering keep-alive mode. Checking every 5 minutes.")
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-
-		for range ticker.C {
-			run(recordName, *secret, *out, &lastTXT)
-		}
 	}
 }
 
-func run(recordName, secret, out string, lastTXT *string) {
+func process(recordName, secret, out string, lastTXT *string) {
 	// Look up TXT record
 	txts, err := net.LookupTXT(recordName)
 	if err != nil {

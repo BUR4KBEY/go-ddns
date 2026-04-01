@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/bur4kbey/go-ddns/internal/cloudflare"
@@ -11,6 +12,15 @@ import (
 	"github.com/bur4kbey/go-ddns/internal/env"
 	"github.com/bur4kbey/go-ddns/internal/ipfetcher"
 	"github.com/joho/godotenv"
+	"github.com/spf13/cobra"
+)
+
+var (
+	secret  string
+	cfToken string
+	zoneID  string
+	domain  string
+	key     string
 )
 
 func main() {
@@ -18,51 +28,69 @@ func main() {
 	// In Docker, these will be set via environment variables and this will fail silently.
 	_ = godotenv.Load()
 
-	config := env.Load()
-	secret := config.Secret
-	cfToken := config.CloudflareToken
-	zoneID := config.ZoneID
-	domain := config.Domain
-	key := config.Key
+	rootCmd := &cobra.Command{
+		Use:   "server",
+		Short: "go-ddns server updates Cloudflare TXT records with your public IP",
+		Run: func(cmd *cobra.Command, args []string) {
+			config := env.Load()
 
-	if secret == "" {
-		log.Fatal("Missing required environment variable: GO_DDNS_SECRET")
+			if secret == "" {
+				secret = config.Secret
+			}
+			if cfToken == "" {
+				cfToken = config.CloudflareToken
+			}
+			if zoneID == "" {
+				zoneID = config.ZoneID
+			}
+			if domain == "" {
+				domain = config.Domain
+			}
+			if key == "" {
+				key = config.Key
+			}
+
+			if secret == "" || cfToken == "" || zoneID == "" || domain == "" || key == "" {
+				fmt.Println("Usage:")
+				_ = cmd.Help()
+				os.Exit(1)
+			}
+
+			recordName := fmt.Sprintf("%s.%s", key, domain)
+			if key == "@" || key == "" {
+				recordName = domain
+			}
+
+			cfClient, err := cloudflare.NewClient(cfToken)
+			if err != nil {
+				log.Fatalf("Failed to initialize Cloudflare client: %v", err)
+			}
+
+			log.Printf("Starting GO-DDNS server for record: %s", recordName)
+
+			ticker := time.NewTicker(5 * time.Minute)
+			defer ticker.Stop()
+
+			var lastIP string
+
+			// Run immediately on start
+			updateIP(cfClient, zoneID, recordName, secret, &lastIP)
+
+			for range ticker.C {
+				updateIP(cfClient, zoneID, recordName, secret, &lastIP)
+			}
+		},
 	}
-	if cfToken == "" {
-		log.Fatal("Missing required environment variable: GO_DDNS_CLOUDFLARE_TOKEN")
-	}
-	if zoneID == "" {
-		log.Fatal("Missing required environment variable: GO_DDNS_ZONE_ID")
-	}
-	if domain == "" {
-		log.Fatal("Missing required environment variable: GO_DDNS_DOMAIN")
-	}
-	if key == "" {
-		log.Fatal("Missing required environment variable: GO_DDNS_KEY")
-	}
 
-	recordName := fmt.Sprintf("%s.%s", key, domain)
-	if key == "@" || key == "" {
-		recordName = domain
-	}
+	rootCmd.Flags().StringVar(&secret, "secret", "", "The encryption secret")
+	rootCmd.Flags().StringVar(&cfToken, "cf-token", "", "Cloudflare API token")
+	rootCmd.Flags().StringVar(&zoneID, "zone-id", "", "Cloudflare Zone ID")
+	rootCmd.Flags().StringVar(&domain, "domain", "", "The base public domain")
+	rootCmd.Flags().StringVar(&key, "key", "", "The TXT record key/subdomain")
 
-	cfClient, err := cloudflare.NewClient(cfToken)
-	if err != nil {
-		log.Fatalf("Failed to initialize Cloudflare client: %v", err)
-	}
-
-	log.Printf("Starting GO-DDNS server for record: %s", recordName)
-
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
-
-	var lastIP string
-
-	// Run immediately on start
-	updateIP(cfClient, zoneID, recordName, secret, &lastIP)
-
-	for range ticker.C {
-		updateIP(cfClient, zoneID, recordName, secret, &lastIP)
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
